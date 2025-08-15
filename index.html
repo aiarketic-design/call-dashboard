@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canlı Arama Raporu Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            padding: 30px; 
+            text-align: center;
+            position: relative;
+        }
+        .header h1 { font-size: 2rem; margin-bottom: 10px; }
+        .live-badge { 
+            position: absolute; 
+            top: 20px; 
+            right: 25px; 
+            background: rgba(255,255,255,0.2); 
+            padding: 5px 10px; 
+            border-radius: 15px; 
+            font-size: 12px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 
+            0% { opacity: 1; } 
+            50% { opacity: 0.7; } 
+            100% { opacity: 1; } 
+        }
+        .controls {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .refresh-btn:hover {
+            background: #5a6fd8;
+        }
+        .status-info {
+            font-size: 14px;
+            color: #666;
+        }
+        .kpi-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 20px; 
+            padding: 30px;
+        }
+        .kpi-card { 
+            background: #f8f9ff; 
+            border: 2px solid #667eea; 
+            border-radius: 10px; 
+            padding: 20px; 
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        .kpi-card:hover { 
+            transform: translateY(-5px);
+        }
+        .kpi-value { 
+            font-size: 2.5rem; 
+            font-weight: bold; 
+            color: #667eea; 
+            margin-bottom: 10px;
+        }
+        .kpi-label { 
+            font-size: 14px; 
+            color: #666; 
+            font-weight: 600;
+        }
+        .section { 
+            margin: 20px 30px; 
+            background: white; 
+            border-radius: 8px; 
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section-header { 
+            background: #667eea; 
+            color: white; 
+            padding: 15px 20px; 
+            font-weight: bold;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse;
+        }
+        th { 
+            background: #667eea; 
+            color: white; 
+            padding: 12px; 
+            text-align: left;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) { background: #f8f9ff; }
+        tr:hover { background: #e3f2fd; }
+        .status-success { color: #28a745; font-weight: bold; }
+        .status-failed { color: #dc3545; font-weight: bold; }
+        .footer { 
+            background: #333; 
+            color: white; 
+            padding: 20px; 
+            text-align: center;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+        }
+        @media (max-width: 768px) {
+            .container { margin: 0; border-radius: 0; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .controls { flex-direction: column; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="live-badge">🔴 CANLI</div>
+            <h1>📞 Canlı Arama Raporu Dashboard</h1>
+            <p id="current-time">Yükleniyor...</p>
+        </div>
+        
+        <div class="controls">
+            <button class="refresh-btn" onclick="loadData()">🔄 Yenile</button>
+            <div class="status-info">
+                Son Güncelleme: <span id="last-update">-</span> | 
+                Durum: <span id="status">Bağlanıyor...</span>
+            </div>
+        </div>
+        
+        <div id="dashboard-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Arama verileri yükleniyor...</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>🤖 Bu dashboard n8n workflow sistemi ile entegre çalışmaktadır.</p>
+            <p>📊 Gerçek zamanlı arama verileri | 🔄 Otomatik güncelleme</p>
+        </div>
+    </div>
+    
+    <script>
+        // !! BU URL'İ DEĞİŞTİRİN !! 
+        // n8n webhook URL'inizi buraya yazın (sadece veri döndüren)
+        const API_URL = 'https://YOUR_N8N_DOMAIN/webhook/YOUR_PATH';
+        
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = 
+                'Tarih: ' + now.toLocaleDateString('tr-TR') + ' | Saat: ' + now.toLocaleTimeString('tr-TR');
+        }
+        
+        async function loadData() {
+            const statusEl = document.getElementById('status');
+            const lastUpdateEl = document.getElementById('last-update');
+            const contentEl = document.getElementById('dashboard-content');
+            
+            try {
+                statusEl.textContent = 'Yükleniyor...';
+                statusEl.style.color = '#ffc107';
+                
+                contentEl.innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>API'dan veri alınıyor...</p>
+                    </div>
+                `;
+                
+                // API çağrısı (n8n webhook'a istek at)
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                // Dashboard'u güncelle
+                updateDashboard(data);
+                
+                statusEl.textContent = 'Bağlı';
+                statusEl.style.color = '#28a745';
+                lastUpdateEl.textContent = new Date().toLocaleTimeString('tr-TR');
+                
+            } catch (error) {
+                console.error('API Hatası:', error);
+                
+                contentEl.innerHTML = `
+                    <div class="error">
+                        <h3>⚠️ Bağlantı Hatası</h3>
+                        <p>n8n API'sından veri alınamadı: ${error.message}</p>
+                        <p>Lütfen webhook URL'ini kontrol edin ve tekrar deneyin.</p>
+                        <button onclick="loadData()" style="background:#667eea;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;">Tekrar Dene</button>
+                    </div>
+                `;
+                
+                statusEl.textContent = 'Hata';
+                statusEl.style.color = '#dc3545';
+            }
+        }
+        
+        function updateDashboard(data) {
+            // KPI'ları güncelle
+            const kpiHtml = `
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-value">${data.totalCalls || '0'}</div>
+                        <div class="kpi-label">Toplam Arama</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">${data.successRate || '0%'}</div>
+                        <div class="kpi-label">Başarı Oranı</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">${data.avgDuration || '0:00'}</div>
+                        <div class="kpi-label">Ort. Konuşma</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-value">${data.busyRate || '0%'}</div>
+                        <div class="kpi-label">Meşgul Oranı</div>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <div class="section-header">📋 Son Aramalar</div>
+                    <table>
+                        <thead>
+                            <tr><th>Saat</th><th>Arayan</th><th>Aranan</th><th>Durum</th><th>Süre</th><th>App</th></tr>
+                        </thead>
+                        <tbody>
+                            ${generateCallsTable(data.recentCalls || [])}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            document.getElementById('dashboard-content').innerHTML = kpiHtml;
+        }
+        
+        function generateCallsTable(calls) {
+            if (!calls || calls.length === 0) {
+                return '<tr><td colspan="6" style="text-align:center;padding:20px;">Arama verisi bulunamadı</td></tr>';
+            }
+            
+            return calls.map(call => `
+                <tr>
+                    <td>${call.time || '-'}</td>
+                    <td>${call.caller || '-'}</td>
+                    <td>${call.called || '-'}</td>
+                    <td class="${call.status === 'CEVAPLANDI' ? 'status-success' : 'status-failed'}">${call.status || '-'}</td>
+                    <td>${call.duration || '-'}</td>
+                    <td>${call.app || '-'}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // Sayfa yüklendiğinde
+        document.addEventListener('DOMContentLoaded', function() {
+            updateCurrentTime();
+            loadData();
+            
+            // Her dakika saat güncelle
+            setInterval(updateCurrentTime, 60000);
+            
+            // Her 2 dakikada bir veri yenile
+            setInterval(loadData, 120000);
+        });
+        
+        // Manuel yenileme
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+                e.preventDefault();
+                loadData();
+            }
+        });
+    </script>
+</body>
+</html>
