@@ -1,0 +1,105 @@
+name: Update Dashboard Data
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Fetch data from n8n
+      run: |
+        echo "🔄 n8n'den veri çekiliyor..."
+        
+        if curl -s -f --connect-timeout 10 --max-time 30 "http://10.220.0.151:5678/webhook/c645dc3f-f575-48c4-ab0a-0bc30a1954bf" > data.json; then
+          echo "✅ n8n'den veri başarıyla alındı"
+          cat data.json
+        else
+          echo "❌ n8n API erişilemedi, fallback veri oluşturuluyor"
+          cat > data.json << 'EOF'
+        {
+          "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "date": "$(date +%Y-%m-%d)",
+          "totalCalls": 0,
+          "successfulCalls": 0,
+          "successRate": 0,
+          "recentCalls": [],
+          "error": "n8n API temporarily unavailable"
+        }
+        EOF
+        fi
+        
+    - name: Update HTML with data
+      run: |
+        echo "📝 HTML dosyası güncelleniyor..."
+        
+        python3 << 'EOF'
+        import json
+        import re
+        from datetime import datetime
+        
+        try:
+            with open('data.json', 'r') as f:
+                data = json.load(f)
+            print("✅ JSON verisi okundu:", data)
+        except Exception as e:
+            print("❌ JSON okuma hatası:", e)
+            data = {
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "totalCalls": 0,
+                "successfulCalls": 0,
+                "successRate": 0,
+                "recentCalls": []
+            }
+        
+        try:
+            with open('index.html', 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            print("✅ HTML dosyası okundu")
+        except Exception as e:
+            print("❌ HTML okuma hatası:", e)
+            exit(1)
+        
+        js_data_block = f'''        const LIVE_DATA = {json.dumps(data, indent=8)};
+        const LAST_UPDATE = '{datetime.now().strftime("%d.%m.%Y %H:%M")}';'''
+        
+        pattern = r'(\s*const LIVE_DATA = .*?;\s*const LAST_UPDATE = .*?;)'
+        
+        if re.search(pattern, html_content, re.DOTALL):
+            html_content = re.sub(pattern, '\n' + js_data_block + '\n        ', html_content, flags=re.DOTALL)
+            print("✅ Mevcut veri bloğu güncellendi")
+        else:
+            print("❌ Veri bloğu bulunamadı")
+            exit(1)
+        
+        try:
+            with open('index.html', 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            print("✅ HTML dosyası güncellendi")
+            print(f"📊 Toplam arama: {data.get('totalCalls', 0)}")
+        except Exception as e:
+            print("❌ HTML yazma hatası:", e)
+            exit(1)
+        EOF
+        
+    - name: Commit and push changes
+      run: |
+        echo "📤 Değişiklikler GitHub'a gönderiliyor..."
+        
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action Bot"
+        
+        if git diff --quiet; then
+          echo "ℹ️ Güncellenecek değişiklik bulunamadı"
+        else
+          git add index.html data.json
+          git commit -m "🤖 Otomatik dashboard güncellemesi - $(date '+%d.%m.%Y %H:%M UTC')"
+          git push
+          echo "✅ Dashboard başarıyla güncellendi"
+        fi
