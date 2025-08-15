@@ -43,28 +43,13 @@
             50% { opacity: 0.7; } 
             100% { opacity: 1; } 
         }
-        .controls {
-            background: #f8f9fa;
+        .auto-update-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f8f9ff 100%);
             padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .refresh-btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .refresh-btn:hover {
-            background: #5a6fd8;
-        }
-        .status-info {
+            text-align: center;
+            color: #1976d2;
             font-size: 14px;
-            color: #666;
+            border-bottom: 1px solid #e1f5fe;
         }
         .kpi-grid { 
             display: grid; 
@@ -80,9 +65,7 @@
             text-align: center;
             transition: transform 0.3s ease;
         }
-        .kpi-card:hover { 
-            transform: translateY(-5px);
-        }
+        .kpi-card:hover { transform: translateY(-5px); }
         .kpi-value { 
             font-size: 2.5rem; 
             font-weight: bold; 
@@ -107,10 +90,7 @@
             padding: 15px 20px; 
             font-weight: bold;
         }
-        table { 
-            width: 100%; 
-            border-collapse: collapse;
-        }
+        table { width: 100%; border-collapse: collapse; }
         th { 
             background: #667eea; 
             color: white; 
@@ -125,41 +105,23 @@
         tr:hover { background: #e3f2fd; }
         .status-success { color: #28a745; font-weight: bold; }
         .status-failed { color: #dc3545; font-weight: bold; }
+        .status-busy { color: #ffc107; font-weight: bold; }
         .footer { 
             background: #333; 
             color: white; 
             padding: 20px; 
             text-align: center;
         }
-        .loading {
+        .data-source {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px 30px;
             text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 20px;
-            margin: 20px;
-            border-radius: 8px;
+            font-size: 13px;
         }
         @media (max-width: 768px) {
             .container { margin: 0; border-radius: 0; }
             .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-            .controls { flex-direction: column; gap: 10px; }
         }
     </style>
 </head>
@@ -171,31 +133,70 @@
             <p id="current-time">Yükleniyor...</p>
         </div>
         
-        <div class="controls">
-            <button class="refresh-btn" onclick="loadData()">🔄 Yenile</button>
-            <div class="status-info">
-                Son Güncelleme: <span id="last-update">-</span> | 
-                Durum: <span id="status">Bağlanıyor...</span>
+        <div class="auto-update-info">
+            🤖 Bu dashboard GitHub Actions ile her 5 dakikada otomatik güncellenir | 
+            Son veri güncellemesi: <span id="last-data-update">-</span>
+        </div>
+        
+        <div class="data-source">
+            📡 Veri Kaynağı: n8n Workflow Sistemi | 🔄 Otomatik Senkronizasyon Aktif
+        </div>
+        
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-value" id="total-calls">-</div>
+                <div class="kpi-label">Toplam Arama</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="successful-calls">-</div>
+                <div class="kpi-label">Başarılı Arama</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="success-rate">-%</div>
+                <div class="kpi-label">Başarı Oranı</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-value" id="avg-duration">-</div>
+                <div class="kpi-label">Ortalama Süre</div>
             </div>
         </div>
         
-        <div id="dashboard-content">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>Arama verileri yükleniyor...</p>
-            </div>
+        <div class="section">
+            <div class="section-header">📋 Son Aramalar (Bugünkü Son 10 Arama)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Saat</th>
+                        <th>Arayan</th>
+                        <th>Aranan</th>
+                        <th>Durum</th>
+                        <th>Süre</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-calls-table">
+                    <tr>
+                        <td colspan="5" style="text-align:center;padding:20px;">Veri yükleniyor...</td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
         
         <div class="footer">
-            <p>🤖 Bu dashboard n8n workflow sistemi ile entegre çalışmaktadır.</p>
-            <p>📊 Gerçek zamanlı arama verileri | 🔄 Otomatik güncelleme</p>
+            <p>🤖 Bu dashboard n8n + GitHub Actions ile otomatik olarak güncellenmektedir</p>
+            <p>📊 Gerçek zamanlı santral verileri | 🔄 5 dakikada bir otomatik güncelleme</p>
+            <p>⚡ Son sistem güncellemesi: <span id="system-update">-</span></p>
         </div>
     </div>
     
     <script>
-        // !! BU URL'İ DEĞİŞTİRİN !! 
-        // n8n webhook URL'inizi buraya yazın (sadece veri döndüren)
-        const API_URL = 'http://10.220.0.151:5678/webhook/c645dc3f-f575-48c4-ab0a-0bc30a1954bf';
+        const LIVE_DATA = {
+          "timestamp": "2025-08-15T12:00:00Z",
+          "totalCalls": 0,
+          "successfulCalls": 0,
+          "successRate": 0,
+          "recentCalls": []
+        };
+        const LAST_UPDATE = '15.08.2025 12:00';
         
         function updateCurrentTime() {
             const now = new Date();
@@ -203,123 +204,80 @@
                 'Tarih: ' + now.toLocaleDateString('tr-TR') + ' | Saat: ' + now.toLocaleTimeString('tr-TR');
         }
         
-        async function loadData() {
-            const statusEl = document.getElementById('status');
-            const lastUpdateEl = document.getElementById('last-update');
-            const contentEl = document.getElementById('dashboard-content');
-            
+        function maskPhoneNumber(phone) {
+            if (!phone || phone.length < 4) return phone;
+            const start = phone.substring(0, 4);
+            const end = phone.substring(phone.length - 4);
+            return start + '***' + end;
+        }
+        
+        function formatDuration(seconds) {
+            const sec = parseInt(seconds) || 0;
+            if (sec === 0) return '0:00';
+            const minutes = Math.floor(sec / 60);
+            const remainingSeconds = sec % 60;
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+        
+        function getStatusDisplay(disposition) {
+            const disp = (disposition || '').toUpperCase();
+            if (disp.includes('ANSWER')) {
+                return '<span class="status-success">CEVAPLANDI</span>';
+            } else if (disp.includes('BUSY')) {
+                return '<span class="status-busy">MEŞGUL</span>';
+            } else {
+                return '<span class="status-failed">CEVAPSIZ</span>';
+            }
+        }
+        
+        function loadDashboardData() {
             try {
-                statusEl.textContent = 'Yükleniyor...';
-                statusEl.style.color = '#ffc107';
+                document.getElementById('total-calls').textContent = 
+                    (LIVE_DATA.totalCalls || 0).toLocaleString('tr-TR');
+                document.getElementById('successful-calls').textContent = 
+                    (LIVE_DATA.successfulCalls || 0).toLocaleString('tr-TR');
+                document.getElementById('success-rate').textContent = 
+                    (LIVE_DATA.successRate || 0) + '%';
                 
-                contentEl.innerHTML = `
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p>API'dan veri alınıyor...</p>
-                    </div>
-                `;
+                const avgDur = LIVE_DATA.recentCalls && LIVE_DATA.recentCalls.length > 0 ?
+                    LIVE_DATA.recentCalls.reduce((sum, call) => sum + (parseInt(call.duration) || 0), 0) / LIVE_DATA.recentCalls.length : 0;
+                document.getElementById('avg-duration').textContent = formatDuration(Math.round(avgDur));
                 
-                // API çağrısı (n8n webhook'a istek at)
-                const response = await fetch(API_URL);
-                const data = await response.json();
+                const tableBody = document.getElementById('recent-calls-table');
                 
-                // Dashboard'u güncelle
-                updateDashboard(data);
+                if (!LIVE_DATA.recentCalls || LIVE_DATA.recentCalls.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#666;">Bugün henüz arama verisi bulunmuyor</td></tr>';
+                } else {
+                    const rows = LIVE_DATA.recentCalls.map(call => `
+                        <tr>
+                            <td>${call.time || '-'}</td>
+                            <td>${maskPhoneNumber(call.src || '-')}</td>
+                            <td>${maskPhoneNumber(call.dst || '-')}</td>
+                            <td>${getStatusDisplay(call.disposition)}</td>
+                            <td>${formatDuration(call.duration)}</td>
+                        </tr>
+                    `).join('');
+                    
+                    tableBody.innerHTML = rows;
+                }
                 
-                statusEl.textContent = 'Bağlı';
-                statusEl.style.color = '#28a745';
-                lastUpdateEl.textContent = new Date().toLocaleTimeString('tr-TR');
+                document.getElementById('last-data-update').textContent = LAST_UPDATE;
+                document.getElementById('system-update').textContent = new Date().toLocaleString('tr-TR');
+                
+                console.log('✅ Dashboard verisi güncellendi:', LIVE_DATA);
                 
             } catch (error) {
-                console.error('API Hatası:', error);
-                
-                contentEl.innerHTML = `
-                    <div class="error">
-                        <h3>⚠️ Bağlantı Hatası</h3>
-                        <p>n8n API'sından veri alınamadı: ${error.message}</p>
-                        <p>Lütfen webhook URL'ini kontrol edin ve tekrar deneyin.</p>
-                        <button onclick="loadData()" style="background:#667eea;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;">Tekrar Dene</button>
-                    </div>
-                `;
-                
-                statusEl.textContent = 'Hata';
-                statusEl.style.color = '#dc3545';
+                console.error('❌ Dashboard yükleme hatası:', error);
+                document.getElementById('recent-calls-table').innerHTML = 
+                    '<tr><td colspan="5" style="text-align:center;padding:20px;color:#dc3545;">Veri yükleme hatası</td></tr>';
             }
         }
         
-        function updateDashboard(data) {
-            // KPI'ları güncelle
-            const kpiHtml = `
-                <div class="kpi-grid">
-                    <div class="kpi-card">
-                        <div class="kpi-value">${data.totalCalls || '0'}</div>
-                        <div class="kpi-label">Toplam Arama</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-value">${data.successRate || '0%'}</div>
-                        <div class="kpi-label">Başarı Oranı</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-value">${data.avgDuration || '0:00'}</div>
-                        <div class="kpi-label">Ort. Konuşma</div>
-                    </div>
-                    <div class="kpi-card">
-                        <div class="kpi-value">${data.busyRate || '0%'}</div>
-                        <div class="kpi-label">Meşgul Oranı</div>
-                    </div>
-                </div>
-                
-                <div class="section">
-                    <div class="section-header">📋 Son Aramalar</div>
-                    <table>
-                        <thead>
-                            <tr><th>Saat</th><th>Arayan</th><th>Aranan</th><th>Durum</th><th>Süre</th><th>App</th></tr>
-                        </thead>
-                        <tbody>
-                            ${generateCallsTable(data.recentCalls || [])}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            
-            document.getElementById('dashboard-content').innerHTML = kpiHtml;
-        }
-        
-        function generateCallsTable(calls) {
-            if (!calls || calls.length === 0) {
-                return '<tr><td colspan="6" style="text-align:center;padding:20px;">Arama verisi bulunamadı</td></tr>';
-            }
-            
-            return calls.map(call => `
-                <tr>
-                    <td>${call.time || '-'}</td>
-                    <td>${call.caller || '-'}</td>
-                    <td>${call.called || '-'}</td>
-                    <td class="${call.status === 'CEVAPLANDI' ? 'status-success' : 'status-failed'}">${call.status || '-'}</td>
-                    <td>${call.duration || '-'}</td>
-                    <td>${call.app || '-'}</td>
-                </tr>
-            `).join('');
-        }
-        
-        // Sayfa yüklendiğinde
         document.addEventListener('DOMContentLoaded', function() {
             updateCurrentTime();
-            loadData();
-            
-            // Her dakika saat güncelle
+            loadDashboardData();
             setInterval(updateCurrentTime, 60000);
-            
-            // Her 2 dakikada bir veri yenile
-            setInterval(loadData, 120000);
-        });
-        
-        // Manuel yenileme
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
-                e.preventDefault();
-                loadData();
-            }
+            console.log('🎯 Dashboard yüklendi - GitHub Actions ile otomatik güncelleme aktif');
         });
     </script>
 </body>
