@@ -1,0 +1,9 @@
+{
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "date": "$(date +%Y-%m-%d)",
+  "totalCalls": 0,
+  "successfulCalls": 0,
+  "successRate": 0,
+  "recentCalls": [],
+  "error": "n8n API temporarily unavailable"
+}

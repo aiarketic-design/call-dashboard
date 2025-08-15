@@ -190,13 +190,16 @@
     
     <script>
         const LIVE_DATA = {
-          "timestamp": "2025-08-15T12:00:00Z",
-          "totalCalls": 0,
-          "successfulCalls": 0,
-          "successRate": 0,
-          "recentCalls": []
-        };
-        const LAST_UPDATE = '15.08.2025 12:00';
+        "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+        "date": "$(date +%Y-%m-%d)",
+        "totalCalls": 0,
+        "successfulCalls": 0,
+        "successRate": 0,
+        "recentCalls": [],
+        "error": "n8n API temporarily unavailable"
+};
+const LAST_UPDATE = '15.08.2025 09:47';
+        
         
         function updateCurrentTime() {
             const now = new Date();
